@@ -22,11 +22,9 @@ fun WearApp() {
         Scaffold(
             timeText = { TimeText() },
             vignette = { Vignette(vignettePosition = VignettePosition.TopAndBottom) },
-        ) { contentPadding ->
+        ) {
             ScalingLazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(contentPadding),
+                modifier = Modifier.fillMaxSize(),
                 state = listState,
             ) {
                 item { Text(text = "HeteroSync") }
