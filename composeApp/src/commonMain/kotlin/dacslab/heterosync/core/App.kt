@@ -1,47 +1,89 @@
 package dacslab.heterosync.core
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.safeContentPadding
-import androidx.compose.material3.Button
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import androidx.compose.foundation.layout.*
+import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import org.jetbrains.compose.resources.painterResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import org.jetbrains.compose.ui.tooling.preview.Preview
-
-import heterosync.composeapp.generated.resources.Res
-import heterosync.composeapp.generated.resources.compose_multiplatform
 
 @Composable
 @Preview
 fun App() {
     MaterialTheme {
-        var showContent by remember { mutableStateOf(false) }
+        val calculator = remember { Calculator() }
+        var firstNumber by remember { mutableStateOf("") }
+        var secondNumber by remember { mutableStateOf("") }
+        var result by remember { mutableStateOf("") }
+        
         Column(
             modifier = Modifier
-                .background(MaterialTheme.colorScheme.primaryContainer)
-                .safeContentPadding()
-                .fillMaxSize(),
+                .background(MaterialTheme.colorScheme.background)
+                .fillMaxSize()
+                .padding(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Button(onClick = { showContent = !showContent }) {
-                Text("Click me!")
+            Text(
+                text = "간단한 덧셈 계산기",
+                fontSize = 24.sp,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onBackground
+            )
+            
+            OutlinedTextField(
+                value = firstNumber,
+                onValueChange = { firstNumber = it },
+                label = { Text("첫 번째 숫자") },
+                modifier = Modifier.fillMaxWidth()
+            )
+            
+            Text(
+                text = "+",
+                fontSize = 32.sp,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.primary
+            )
+            
+            OutlinedTextField(
+                value = secondNumber,
+                onValueChange = { secondNumber = it },
+                label = { Text("두 번째 숫자") },
+                modifier = Modifier.fillMaxWidth()
+            )
+            
+            Button(
+                onClick = {
+                    val num1 = firstNumber.toDoubleOrNull() ?: 0.0
+                    val num2 = secondNumber.toDoubleOrNull() ?: 0.0
+                    val calcResult = calculator.add(num1, num2)
+                    result = calculator.formatResult(calcResult)
+                },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("계산하기", fontSize = 18.sp)
             }
-            AnimatedVisibility(showContent) {
-                val greeting = remember { Greeting().greet() }
-                Column(
+            
+            if (result.isNotEmpty()) {
+                Card(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalAlignment = Alignment.CenterHorizontally,
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.primaryContainer
+                    )
                 ) {
-                    Image(painterResource(Res.drawable.compose_multiplatform), null)
-                    Text("Compose: $greeting")
+                    Text(
+                        text = "결과: $result",
+                        fontSize = 24.sp,
+                        fontWeight = FontWeight.Bold,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.padding(24.dp).fillMaxWidth(),
+                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
                 }
             }
         }
