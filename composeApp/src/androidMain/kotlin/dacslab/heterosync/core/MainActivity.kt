@@ -6,16 +6,17 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.tooling.preview.Preview
+import dacslab.heterosync.ui.mobile.MobileApp
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
 
-        setContent { WearApp() }
+        setContent { MobileApp() }
     }
 }
 
 @Preview
 @Composable
-fun WearAndroidPreview() { WearApp() }
+fun MobileAndroidPreview() { MobileApp() }
