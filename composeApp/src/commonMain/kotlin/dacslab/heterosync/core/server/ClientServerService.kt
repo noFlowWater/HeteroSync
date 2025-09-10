@@ -37,14 +37,19 @@ class ClientServerService {
             path = "/api/v1/health",
             description = "서버 상태 확인"
         ) { call ->
+            println("📥 [GET] /api/v1/health - Health check requested")
             call.respond(mapOf("healthy" to true))
+            println("📤 Health check response sent")
         },
         ApiEndpointWithHandler(
             method = "GET", 
             path = "/api/v1/time",
             description = "현재 시간 조회"
         ) { call ->
-            call.respond(mapOf("local_time" to System.currentTimeMillis()))
+            println("📥 [GET] /api/v1/time - Time requested")
+            val currentTime = System.currentTimeMillis()
+            call.respond(mapOf("local_time" to currentTime))
+            println("📤 Time response sent: $currentTime")
         }
     )
 
@@ -63,10 +68,22 @@ class ClientServerService {
                 routing {
                     endpointsWithHandlers.forEach { endpoint ->
                         when (endpoint.method.uppercase()) {
-                            "GET" -> get(endpoint.path) { endpoint.handler(call) }
-                            "POST" -> post(endpoint.path) { endpoint.handler(call) }
-                            "PUT" -> put(endpoint.path) { endpoint.handler(call) }
-                            "DELETE" -> delete(endpoint.path) { endpoint.handler(call) }
+                            "GET" -> get(endpoint.path) { 
+                                println("📥 [GET] ${endpoint.path} - ${endpoint.description}")
+                                endpoint.handler(call)
+                            }
+                            "POST" -> post(endpoint.path) { 
+                                println("📥 [POST] ${endpoint.path} - ${endpoint.description}")
+                                endpoint.handler(call)
+                            }
+                            "PUT" -> put(endpoint.path) { 
+                                println("📥 [PUT] ${endpoint.path} - ${endpoint.description}")
+                                endpoint.handler(call)
+                            }
+                            "DELETE" -> delete(endpoint.path) { 
+                                println("📥 [DELETE] ${endpoint.path} - ${endpoint.description}")
+                                endpoint.handler(call)
+                            }
                         }
                     }
                 }

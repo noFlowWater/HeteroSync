@@ -26,8 +26,8 @@ data class UpdateDeviceRequest(
 
 @Serializable
 data class GetDeviceRequest(
-    val server_ip: String,
-    val server_port: Int,
+    val server_ip: String? = null,
+    val server_port: Int? = null,
     val device_ip: String,
     val device_port: Int
 )

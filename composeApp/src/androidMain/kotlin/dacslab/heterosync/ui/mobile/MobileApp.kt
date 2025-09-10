@@ -1,20 +1,18 @@
 package dacslab.heterosync.ui.mobile
 
 import androidx.activity.compose.BackHandler
-import androidx.compose.foundation.layout.*
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import dacslab.heterosync.core.data.DeviceInfo
 import dacslab.heterosync.ui.common.AppState
 import dacslab.heterosync.ui.common.AppViewModel
+import dacslab.heterosync.ui.mobile.screens.DeviceRegistrationScreen
+import dacslab.heterosync.ui.mobile.screens.DeviceUpdateScreen
+import dacslab.heterosync.ui.mobile.screens.ClientServerStartScreen
+import dacslab.heterosync.ui.mobile.screens.ClientServerRunningScreen
+import dacslab.heterosync.ui.mobile.screens.DeviceConfirmationScreen
+import dacslab.heterosync.ui.mobile.screens.DeviceInputScreen
+import dacslab.heterosync.ui.mobile.screens.ErrorScreen
+import dacslab.heterosync.ui.mobile.screens.LoadingScreen
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -40,9 +38,14 @@ fun MobileApp() {
             }
             is AppState.DeviceInput -> {
                 DeviceInputScreen(
-                    onDeviceCheck = { ip, port ->
+                    onDeviceCheck = { serverIp, serverPort, deviceIp, devicePort ->
                         scope.launch {
-                            viewModel.checkDevice(ip, port)
+                            viewModel.checkDevice(
+                                serverIp,
+                                serverPort,
+                                deviceIp,
+                                devicePort
+                            )
                         }
                     }
                 )
@@ -50,303 +53,124 @@ fun MobileApp() {
             is AppState.DeviceConfirmation -> {
                 DeviceConfirmationScreen(
                     deviceInfo = currentState.deviceInfo,
-                    onConfirm = { viewModel.confirmDevice(currentState.deviceInfo) },
+                    onConfirm = { viewModel.confirmDevice(currentState.deviceInfo, currentState.serverIp, currentState.serverPort) },
                     onCancel = { viewModel.resetToInput() },
-                    onBack = { viewModel.navigateBack() }
+                    onBack = { viewModel.navigateBack() },
+                    onUpdateDevice = {
+                        viewModel.navigateToDeviceUpdate(
+                            currentState.serverIp,
+                            currentState.serverPort,
+                            currentState.deviceInfo
+                        )
+                    }
                 )
             }
             is AppState.Connected -> {
-                ConnectedScreen(
+                ClientServerStartScreen(
                     deviceInfo = currentState.deviceInfo,
-                    onBack = { viewModel.navigateBack() }
+                    serverIp = currentState.serverIp,
+                    serverPort = currentState.serverPort,
+                    onBack = { viewModel.navigateBack() },
+                    onStartServer = {
+                        viewModel.startClientServer(
+                            currentState.deviceInfo,
+                            currentState.serverIp,
+                            currentState.serverPort
+                        )
+                    }
                 )
             }
             is AppState.DeviceNotFound -> {
                 ErrorScreen(
                     message = "디바이스를 찾을 수 없습니다",
-                    onRetry = { viewModel.resetToInput() }
+                    onRetry = { viewModel.resetToInput() },
+                    onRegisterNewDevice = {
+                        viewModel.navigateToDeviceRegistration(
+                            currentState.serverIp,
+                            currentState.serverPort,
+                            currentState.deviceIp,
+                            currentState.devicePort
+                        )
+                    }
                 )
             }
             is AppState.Error -> {
                 ErrorScreen(
                     message = currentState.message,
-                    onRetry = { viewModel.resetToInput() }
+                    onRetry = { viewModel.resetToInput() },
+                    onRegisterNewDevice = if (currentState.serverIp != null && currentState.serverPort != null &&
+                                             currentState.deviceIp != null && currentState.devicePort != null) {
+                        {
+                            viewModel.navigateToDeviceRegistration(
+                                currentState.serverIp,
+                                currentState.serverPort,
+                                currentState.deviceIp,
+                                currentState.devicePort
+                            )
+                        }
+                    } else null
+                )
+            }
+
+            is AppState.DeviceRegistration -> {
+                DeviceRegistrationScreen(
+                    serverIp = currentState.serverIp,
+                    serverPort = currentState.serverPort,
+                    deviceIp = currentState.deviceIp,
+                    devicePort = currentState.devicePort,
+                    onRegisterDevice = { deviceName, deviceOs ->
+                        scope.launch {
+                            viewModel.registerDevice(
+                                currentState.serverIp,
+                                currentState.serverPort,
+                                currentState.deviceIp,
+                                currentState.devicePort,
+                                deviceName,
+                                deviceOs
+                            )
+                        }
+                    },
+                    onCancel = { viewModel.resetToInput() },
+                    onBack = { viewModel.navigateBack() }
+                )
+            }
+            is AppState.DeviceUpdate -> {
+                DeviceUpdateScreen(
+                    serverIp = currentState.serverIp,
+                    serverPort = currentState.serverPort,
+                    deviceInfo = currentState.deviceInfo,
+                    onUpdateDevice = { deviceName, deviceOs, deviceIp, devicePort ->
+                        scope.launch {
+                            viewModel.updateDevice(
+                                currentState.serverIp,
+                                currentState.serverPort,
+                                currentState.deviceInfo.device_ip,
+                                currentState.deviceInfo.device_port,
+                                deviceName,
+                                deviceOs,
+                                deviceIp,
+                                devicePort
+                            )
+                        }
+                    },
+                    onCancel = { viewModel.navigateBack() },
+                    onBack = { viewModel.navigateBack() },
+                    isPortConflict = currentState.isPortConflict,
+                    suggestedPort = currentState.suggestedPort
+                )
+            }
+            is AppState.ClientServerRunning -> {
+                ClientServerRunningScreen(
+                    deviceInfo = currentState.deviceInfo,
+                    serverIp = currentState.serverIp,
+                    serverPort = currentState.serverPort,
+                    clientServerPort = currentState.clientServerPort,
+                    onStop = { viewModel.stopClientServer() },
+                    onBack = { viewModel.navigateBack() }
                 )
             }
         }
     }
 }
 
-@Composable
-private fun LoadingScreen(
-    onBack: () -> Unit
-) {
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("연결 중...") },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.Default.ArrowBack, "뒤로가기")
-                    }
-                }
-            )
-        }
-    ) { paddingValues ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues),
-            contentAlignment = Alignment.Center
-        ) {
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                CircularProgressIndicator()
-                Text("디바이스를 찾는 중...")
-            }
-        }
-    }
-}
 
-@Composable
-private fun DeviceInputScreen(
-    onDeviceCheck: (String, Int) -> Unit
-) {
-    var ip by remember { mutableStateOf("") }
-    var port by remember { mutableStateOf("") }
-    
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterVertically)
-    ) {
-        Text(
-            text = "HeteroSync",
-            fontSize = 32.sp,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.primary
-        )
-        
-        Text(
-            text = "연결할 디바이스 정보를 입력하세요",
-            fontSize = 16.sp,
-            textAlign = TextAlign.Center
-        )
-        
-        OutlinedTextField(
-            value = ip,
-            onValueChange = { ip = it },
-            label = { Text("IP 주소") },
-            modifier = Modifier.fillMaxWidth()
-        )
-        
-        OutlinedTextField(
-            value = port,
-            onValueChange = { port = it },
-            label = { Text("포트 번호") },
-            modifier = Modifier.fillMaxWidth()
-        )
-        
-        Button(
-            onClick = {
-                val portInt = port.toIntOrNull() ?: 8080
-                onDeviceCheck(ip, portInt)
-            },
-            modifier = Modifier.fillMaxWidth(),
-            enabled = ip.isNotBlank()
-        ) {
-            Text("디바이스 찾기", fontSize = 18.sp)
-        }
-    }
-}
-
-@Composable
-private fun DeviceConfirmationScreen(
-    deviceInfo: DeviceInfo,
-    onConfirm: () -> Unit,
-    onCancel: () -> Unit,
-    onBack: () -> Unit
-) {
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("디바이스 확인") },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.Default.ArrowBack, "뒤로가기")
-                    }
-                }
-            )
-        }
-    ) { paddingValues ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-                .padding(24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterVertically)
-        ) {
-        Text(
-            text = "디바이스를 찾았습니다",
-            fontSize = 24.sp,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.primary
-        )
-        
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceVariant
-            )
-        ) {
-            Column(
-                modifier = Modifier.padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Text(
-                    text = "디바이스명: ${deviceInfo.device_name}",
-                    fontSize = 16.sp
-                )
-                Text(
-                    text = "운영체제: ${deviceInfo.device_os}",
-                    fontSize = 16.sp
-                )
-                Text(
-                    text = "주소: ${deviceInfo.device_ip}:${deviceInfo.device_port}",
-                    fontSize = 16.sp
-                )
-            }
-        }
-        
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            OutlinedButton(
-                onClick = onCancel,
-                modifier = Modifier.weight(1f)
-            ) {
-                Text("취소")
-            }
-            
-            Button(
-                onClick = onConfirm,
-                modifier = Modifier.weight(1f)
-            ) {
-                Text("연결")
-            }
-        }
-    }
-}
-
-@Composable
-private fun ConnectedScreen(
-    deviceInfo: DeviceInfo,
-    onBack: () -> Unit
-) {
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("연결 완료") },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.Default.ArrowBack, "뒤로가기")
-                    }
-                }
-            )
-        }
-    ) { paddingValues ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-                .padding(24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterVertically)
-        ) {
-            Text(
-                text = "연결 완료",
-                fontSize = 28.sp,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.primary
-            )
-            
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer
-                )
-            ) {
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Text(
-                        text = "연결된 디바이스",
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer
-                    )
-                    Text(
-                        text = "${deviceInfo.device_name} (${deviceInfo.device_os})",
-                        fontSize = 16.sp,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer
-                    )
-                    Text(
-                        text = "${deviceInfo.device_ip}:${deviceInfo.device_port}",
-                        fontSize = 14.sp,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer
-                    )
-                }
-            }
-            
-            Button(
-                onClick = {
-                    // TODO: 동기화 시작 로직 구현
-                },
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text("동기화 시작", fontSize = 18.sp)
-            }
-        }
-    }
-}
-
-@Composable
-private fun ErrorScreen(
-    message: String,
-    onRetry: () -> Unit
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterVertically)
-    ) {
-        Text(
-            text = "오류",
-            fontSize = 24.sp,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.error
-        )
-        
-        Text(
-            text = message,
-            fontSize = 16.sp,
-            textAlign = TextAlign.Center
-        )
-        
-        Button(
-            onClick = onRetry,
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Text("다시 시도")
-        }
-    }
-}

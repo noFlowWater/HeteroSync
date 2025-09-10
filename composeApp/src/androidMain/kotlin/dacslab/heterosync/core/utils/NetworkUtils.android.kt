@@ -1,75 +1,88 @@
 package dacslab.heterosync.core.utils
 
-import java.net.*
+import io.ktor.client.HttpClient
+import io.ktor.client.engine.okhttp.OkHttp
+import io.ktor.client.plugins.HttpTimeout
+import io.ktor.client.plugins.defaultRequest
+import io.ktor.client.request.get
+import io.ktor.client.statement.HttpResponse
+import io.ktor.client.statement.bodyAsText
+import kotlinx.coroutines.runBlocking
+import java.net.Inet4Address
+import java.net.InetAddress
+import java.net.ServerSocket
+import java.net.UnknownHostException
+import kotlin.random.Random
 
 actual class NetworkUtils {
+
     actual fun getHostExternalIpAddress(): String {
-        return try {
-            // 1. 외부 서버에 연결을 시도하여 실제 사용되는 로컬 IP 확인 (타임아웃 설정)
-            try {
-                Socket().use { socket ->
-                    socket.connect(InetSocketAddress("8.8.8.8", 80), 3000) // 3초 타임아웃
-                    val localAddress = socket.localAddress.hostAddress
-                    if (localAddress != null && isValidExternalIp(localAddress)) {
-                        return localAddress
-                    }
-                }
-            } catch (e: Exception) {
-                println("외부 서버 연결 실패 (${e.message}), 로컬 인터페이스 스캔으로 전환")
+        // 동기(Blocking) 반환
+        val ip = runBlocking {
+            for (u in ENDPOINTS) {
+                val t = fetchIpv4(u)
+                if (t != null) return@runBlocking t
             }
-            
-            // 2. 네트워크 인터페이스에서 외부 접근 가능한 IP 찾기
-            val interfaces = NetworkInterface.getNetworkInterfaces()
-            val candidateIps = mutableListOf<String>()
-            
-            for (networkInterface in interfaces) {
-                val interfaceName = networkInterface.name.lowercase()
-                
-                // WiFi, 이더넷, 모바일 데이터 인터페이스 우선 고려
-                val isRelevantInterface = interfaceName.contains("wlan") || 
-                                        interfaceName.contains("eth") || 
-                                        interfaceName.contains("rmnet") ||
-                                        interfaceName.contains("ccmni") ||
-                                        interfaceName.contains("pdp")
-                
-                if (!networkInterface.isLoopback && networkInterface.isUp && isRelevantInterface) {
-                    val addresses = networkInterface.inetAddresses
-                    for (address in addresses) {
-                        val ip = address.hostAddress
-                        if (ip != null && isValidExternalIp(ip)) {
-                            candidateIps.add(ip)
-                        }
-                    }
-                }
-            }
-            
-            // 3. WiFi 인터페이스 IP 우선, 그 다음 모바일 데이터
-            candidateIps.firstOrNull { !isPrivateIp(it) }
-                ?: candidateIps.firstOrNull()
-                ?: "192.168.1.100" // 기본값
-                
-        } catch (e: Exception) {
-            println("IP 주소 조회 실패: ${e.message}")
-            "192.168.1.100" // 기본값
+            null
         }
+        // 모두 실패 시 기존 기본값 유지
+        return ip ?: FALLBACK_IP
     }
-    
-    private fun isValidExternalIp(ip: String): Boolean {
+
+    private suspend fun fetchIpv4(url: String): String? = try {
+        val resp: HttpResponse = CLIENT.get(url)
+        if (resp.status.value in 200..299) {
+            val body = resp.bodyAsText().trim()
+            val line = body.lineSequence().firstOrNull()?.trim()
+            if (line != null && IPV4_REGEX.matches(line)) line else null
+        } else null
+    } catch (_: Exception) {
+        null
+    }
+
+    companion object {
+        private const val FALLBACK_IP = "192.168.1.100"
+        private val IPV4_REGEX = Regex(
+            "^((25[0-5]|2[0-4]\\d|[01]?\\d?\\d)\\.){3}(25[0-5]|2[0-4]\\d|[01]?\\d?\\d)$"
+        )
+
+        private val CLIENT = HttpClient(OkHttp) {
+            install(HttpTimeout) {
+                requestTimeoutMillis = 3000
+                connectTimeoutMillis = 20003
+                socketTimeoutMillis = 2000
+            }
+            defaultRequest {
+                headers.append("User-Agent", "PublicIpv4Fetcher/1.0")
+            }
+        }
+
+        // IPv4 only 또는 IPv4 응답 보장/우선 엔드포인트
+        private val ENDPOINTS = listOf(
+            "https://v4.ident.me",        // IPv4 only
+            "https://ipv4.icanhazip.com", // IPv4 only
+            "https://api.ipify.org",
+            "https://checkip.amazonaws.com",
+            "https://ifconfig.me/ip"
+        )
+    }
+
+    actual fun getRandomAvailablePort(): Int {
+        repeat(100) { // Try up to 100 times to find an available port
+            val port = Random.nextInt(1024, 65536) // Use ephemeral port range
+            if (isPortAvailable(port)) {
+                return port
+            }
+        }
+        // Fallback: let the system choose a random available port
+        return ServerSocket(0).use { it.localPort }
+    }
+
+    actual fun isPortAvailable(port: Int): Boolean {
         return try {
-            val address = InetAddress.getByName(ip)
-            !address.isLoopbackAddress && 
-            !address.isLinkLocalAddress && 
-            !address.isAnyLocalAddress &&
-            ip.indexOf(':') == -1 // IPv4만 사용
+            ServerSocket(port).use { true }
         } catch (e: Exception) {
             false
         }
-    }
-    
-    private fun isPrivateIp(ip: String): Boolean {
-        return ip.startsWith("192.168.") || 
-               ip.startsWith("10.") || 
-               (ip.startsWith("172.") && 
-                ip.split(".").getOrNull(1)?.toIntOrNull()?.let { it in 16..31 } == true)
     }
 }

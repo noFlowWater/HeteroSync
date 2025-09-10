@@ -33,7 +33,8 @@ class AppViewModel {
             server_ip = server_ip,
             server_port = server_port,
             device_ip = device_ip,
-            device_port = device_port)
+            device_port = device_port
+        )
         deviceApiService.getDevice(request)
             .onSuccess { deviceInfo ->
                 _state.value = AppState.DeviceConfirmation(deviceInfo, server_ip, server_port)

@@ -42,9 +42,9 @@ fun WearApp() {
                 is AppState.DeviceInput -> {
                     DeviceInputScreen(
                         listState = listState,
-                        onQuickConnect = { ip, port ->
+                        onQuickConnect = { serverIp, serverPort, deviceIp, devicePort ->
                             scope.launch {
-                                viewModel.checkDevice(ip, port)
+                                viewModel.checkDevice(serverIp, serverPort, deviceIp, devicePort)
                             }
                         }
                     )
@@ -53,7 +53,7 @@ fun WearApp() {
                     DeviceConfirmationScreen(
                         listState = listState,
                         deviceInfo = currentState.deviceInfo,
-                        onConfirm = { viewModel.confirmDevice(currentState.deviceInfo) },
+                        onConfirm = { viewModel.confirmDevice(currentState.deviceInfo, currentState.serverIp, currentState.serverPort) },
                         onCancel = { viewModel.resetToInput() },
                         onBack = { viewModel.navigateBack() }
                     )
@@ -72,6 +72,10 @@ fun WearApp() {
                         onBack = { viewModel.navigateBack() }
                     )
                 }
+
+                is AppState.ClientServerRunning -> TODO()
+                is AppState.DeviceRegistration -> TODO()
+                is AppState.DeviceUpdate -> TODO()
             }
         }
     }
@@ -112,7 +116,7 @@ private fun LoadingScreen(
 @Composable
 private fun DeviceInputScreen(
     listState: ScalingLazyListState,
-    onQuickConnect: (String, Int) -> Unit
+    onQuickConnect: (String, Int, String, Int) -> Unit
 ) {
     ScalingLazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -137,7 +141,7 @@ private fun DeviceInputScreen(
         
         item {
             Chip(
-                onClick = { onQuickConnect("192.168.1.100", 8080) },
+                onClick = { onQuickConnect("155.230.34.145", 8080, "192.168.1.100", 8081) },
                 label = { Text("테스트 디바이스 1") },
                 colors = ChipDefaults.primaryChipColors()
             )
@@ -145,7 +149,7 @@ private fun DeviceInputScreen(
         
         item {
             Chip(
-                onClick = { onQuickConnect("192.168.1.101", 8081) },
+                onClick = { onQuickConnect("155.230.34.145", 8080, "192.168.1.101", 8082) },
                 label = { Text("테스트 디바이스 2") },
                 colors = ChipDefaults.secondaryChipColors()
             )
