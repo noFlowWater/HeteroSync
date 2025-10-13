@@ -20,12 +20,36 @@ kotlin {
     jvm()
     
     sourceSets {
+        val mobileMain by creating {
+            dependsOn(commonMain.get())
+        }
+
+        val wearMain by creating {
+            dependsOn(commonMain.get())
+        }
+
         androidMain.dependencies {
             implementation(compose.preview)
             implementation(libs.androidx.activity.compose)
-            implementation(libs.androidx.wear.compose.material)
-            implementation(libs.androidx.wear.compose.foundation)
             implementation(libs.ktor.client.okhttp)
+        }
+
+        named("mobileMain") {
+            dependencies {
+                implementation(compose.preview)
+                implementation(libs.androidx.activity.compose)
+                implementation(libs.ktor.client.okhttp)
+            }
+        }
+
+        named("wearMain") {
+            dependencies {
+                implementation(compose.preview)
+                implementation(libs.androidx.activity.compose)
+                implementation(libs.androidx.wear.compose.material)
+                implementation(libs.androidx.wear.compose.foundation)
+                implementation(libs.ktor.client.okhttp)
+            }
         }
         commonMain.dependencies {
             implementation(compose.runtime)
