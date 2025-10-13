@@ -85,13 +85,21 @@ android {
     namespace = "dacslab.heterosync.core"
     compileSdk = libs.versions.android.compileSdk.get().toInt()
 
+    sourceSets {
+        getByName("main") {
+            manifest.srcFile("src/mobileMain/AndroidManifest.xml")
+            res.srcDirs("src/mobileMain/res")
+        }
+    }
+
     defaultConfig {
-        applicationId = "dacslab.heterosync.core"
+        applicationId = "dacslab.heterosync.mobile"
         minSdk = libs.versions.android.minSdk.get().toInt()
         targetSdk = libs.versions.android.targetSdk.get().toInt()
         versionCode = 1
         versionName = "1.0"
     }
+
     packaging {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
@@ -99,14 +107,46 @@ android {
             excludes += "/META-INF/io.netty.versions.properties"
         }
     }
+
     buildTypes {
         getByName("release") {
             isMinifyEnabled = false
         }
     }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
+    }
+
+    // Flavor for Mobile and Wear
+    flavorDimensions += "device"
+    productFlavors {
+        create("mobile") {
+            dimension = "device"
+            applicationIdSuffix = ""
+        }
+        create("wear") {
+            dimension = "device"
+            applicationIdSuffix = ".wear"
+            // Wear-specific source sets
+            sourceSets {
+                getByName("main") {
+                    manifest.srcFile("src/wearMain/AndroidManifest.xml")
+                    res.srcDirs("src/wearMain/res")
+                }
+            }
+        }
+    }
+
+    // Configure source sets for each flavor
+    applicationVariants.all {
+        val flavorName = productFlavors[0].name
+        kotlin.sourceSets {
+            getByName(name) {
+                kotlin.srcDir("src/${flavorName}Main/kotlin")
+            }
+        }
     }
 }
 
