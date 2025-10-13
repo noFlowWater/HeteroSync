@@ -13,8 +13,7 @@ import androidx.compose.ui.unit.sp
 @Composable
 fun ErrorScreen(
     message: String,
-    onRetry: () -> Unit,
-    onRegisterNewDevice: (() -> Unit)? = null
+    onRetry: () -> Unit
 ) {
     Box(
         modifier = Modifier.fillMaxSize(),
@@ -36,7 +35,7 @@ fun ErrorScreen(
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.error
                 )
-                
+
                 Text(
                     text = message,
                     fontSize = 16.sp,
@@ -48,15 +47,6 @@ fun ErrorScreen(
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text("다시 시도")
-                }
-
-                if (onRegisterNewDevice != null) {
-                    OutlinedButton(
-                        onClick = onRegisterNewDevice,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text("새 디바이스 등록하기")
-                    }
                 }
             }
         }

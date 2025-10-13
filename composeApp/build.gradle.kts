@@ -42,6 +42,7 @@ kotlin {
             implementation(libs.ktor.server.core)
             implementation(libs.ktor.server.netty)
             implementation(libs.ktor.server.content.negotiation)
+            implementation(libs.ktor.server.websockets)
             implementation(libs.kotlinx.serialization.json)
             implementation(compose.materialIconsExtended)
         }

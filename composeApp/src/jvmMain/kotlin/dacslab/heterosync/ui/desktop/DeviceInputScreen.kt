@@ -9,20 +9,21 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import dacslab.heterosync.core.utils.NetworkUtils
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DeviceInputScreen(
-    onDeviceCheck: (String, Int, String, Int) -> Unit
+    onDeviceCheck: (String, Int, String) -> Unit
 ) {
     // 연결하고자 하는 서버의 BaseURL 정보를 위한 입력.
-    var server_ip by remember { mutableStateOf("155.230.34.145") }
-    var server_port by remember { mutableStateOf("8080") }
+    var serverIp by remember { mutableStateOf("155.230.34.145") }
+    var serverPort by remember { mutableStateOf("8080") }
 
-    // 현재 디바이스의 IP, 그리고 현재 디바이스에 띄울 '클라이언트 서버'의 Port를 지정.
-    var device_ip by remember { mutableStateOf("") } // Optional, 지정 안되면 getHostExternalIpAddress() 써서 해당 데이터 채우면 됨.
-    var device_port by remember { mutableStateOf("8081") } // 현재 디바이스에 클라이언트 서버의 Port를 입력.
-    
+    // 디바이스 타입 드롭다운
+    var deviceType by remember { mutableStateOf("PSG") }
+    var expanded by remember { mutableStateOf(false) }
+    val deviceTypes = listOf("PSG", "WATCH", "MOBILE", "PC")
+
     Row(
         modifier = Modifier.fillMaxSize()
     ) {
@@ -95,16 +96,16 @@ fun DeviceInputScreen(
                     )
                     
                     OutlinedTextField(
-                        value = server_ip,
-                        onValueChange = { server_ip = it },
+                        value = serverIp,
+                        onValueChange = { serverIp = it },
                         label = { Text("서버 IP 주소") },
                         modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
                         placeholder = { Text("예: 192.168.1.100") }
                     )
                     
                     OutlinedTextField(
-                        value = server_port,
-                        onValueChange = { server_port = it },
+                        value = serverPort,
+                        onValueChange = { serverPort = it },
                         label = { Text("서버 포트") },
                         modifier = Modifier.fillMaxWidth(),
                         placeholder = { Text("예: 8080") }
@@ -123,49 +124,60 @@ fun DeviceInputScreen(
                     modifier = Modifier.padding(16.dp)
                 ) {
                     Text(
-                        text = "📱 현재 디바이스 정보",
+                        text = "📱 현재 디바이스 타입",
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Medium,
                         modifier = Modifier.padding(bottom = 12.dp)
                     )
 
-                    OutlinedTextField(
-                        value = device_ip,
-                        onValueChange = { device_ip = it },
-                        label = { Text("디바이스 IP (선택사항)") },
-                        modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
-                        placeholder = { Text("비워두면 자동 감지") }
-                    )
+                    ExposedDropdownMenuBox(
+                        expanded = expanded,
+                        onExpandedChange = { expanded = !expanded },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        OutlinedTextField(
+                            value = deviceType,
+                            onValueChange = {},
+                            readOnly = true,
+                            label = { Text("디바이스 타입") },
+                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+                            colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .menuAnchor()
+                        )
 
-                    OutlinedTextField(
-                        value = device_port,
-                        onValueChange = { device_port = it },
-                        label = { Text("클라이언트 서버 포트") },
-                        modifier = Modifier.fillMaxWidth(),
-                        placeholder = { Text("예: 8081") }
-                    )
+                        ExposedDropdownMenu(
+                            expanded = expanded,
+                            onDismissRequest = { expanded = false }
+                        ) {
+                            deviceTypes.forEach { type ->
+                                DropdownMenuItem(
+                                    text = { Text(type) },
+                                    onClick = {
+                                        deviceType = type
+                                        expanded = false
+                                    }
+                                )
+                            }
+                        }
+                    }
                 }
             }
             
             Button(
                 onClick = {
-                    val serverPortInt = server_port.toIntOrNull() ?: 8080
-                    val devicePortInt = device_port.toIntOrNull() ?: 8081
-                    val finalDeviceIp = device_ip.ifBlank { 
-                        NetworkUtils().getHostExternalIpAddress()
-                    }
-                    
+                    val serverPortInt = serverPort.toIntOrNull() ?: 8080
                     onDeviceCheck(
-                        server_ip,
+                        serverIp,
                         serverPortInt,
-                        finalDeviceIp,
-                        devicePortInt
+                        deviceType
                     )
                 },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(48.dp),
-                enabled = server_ip.isNotBlank()
+                enabled = serverIp.isNotBlank()
             ) {
                 Text("서버에 연결", fontSize = 16.sp)
             }

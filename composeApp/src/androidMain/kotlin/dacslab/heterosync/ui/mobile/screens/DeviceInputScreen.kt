@@ -1,70 +1,64 @@
 package dacslab.heterosync.ui.mobile.screens
 
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.foundation.layout.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import dacslab.heterosync.core.utils.NetworkUtils
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DeviceInputScreen(
-    onDeviceCheck: (String, Int, String, Int) -> Unit
+    onDeviceCheck: (String, Int, String) -> Unit
 ) {
+    // Server connection info
     var serverIp by remember { mutableStateOf("155.230.34.145") }
     var serverPort by remember { mutableStateOf("8080") }
-    var deviceIp by remember { mutableStateOf("") }
-    var devicePort by remember { mutableStateOf("8081") }
+
+    // Device type dropdown
+    var deviceType by remember { mutableStateOf("MOBILE") }
+    var expanded by remember { mutableStateOf(false) }
+    val deviceTypes = listOf("PSG", "WATCH", "MOBILE", "PC")
 
     Column(
         modifier = Modifier
             .fillMaxSize()
             .padding(24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterVertically)
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text(
             text = "HeteroSync",
             fontSize = 32.sp,
             fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.primary
+            color = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.padding(bottom = 8.dp)
         )
 
         Text(
-            text = "서버 및 디바이스 정보를 입력하세요",
+            text = "다중 디바이스 동기화 도구",
             fontSize = 16.sp,
-            textAlign = TextAlign.Center
+            textAlign = TextAlign.Center,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(bottom = 32.dp)
         )
 
-        // 서버 정보 섹션
+        // Server connection info section
         Card(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
             colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceVariant
+                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
             )
         ) {
             Column(
                 modifier = Modifier.padding(16.dp)
             ) {
                 Text(
-                    text = "🌐 연결할 서버 정보",
+                    text = "연결할 서버 정보",
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Medium,
                     modifier = Modifier.padding(bottom = 12.dp)
@@ -88,54 +82,82 @@ fun DeviceInputScreen(
             }
         }
 
-        // 디바이스 정보 섹션
+        // Current device info section
         Card(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth().padding(bottom = 24.dp),
             colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.primaryContainer
+                containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
             )
         ) {
             Column(
                 modifier = Modifier.padding(16.dp)
             ) {
                 Text(
-                    text = "📱 현재 디바이스 정보",
+                    text = "현재 디바이스 타입",
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Medium,
                     modifier = Modifier.padding(bottom = 12.dp)
                 )
 
-                OutlinedTextField(
-                    value = deviceIp,
-                    onValueChange = { deviceIp = it },
-                    label = { Text("디바이스 IP (선택사항)") },
-                    modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
-                    placeholder = { Text("비워두면 자동 감지") }
-                )
+                ExposedDropdownMenuBox(
+                    expanded = expanded,
+                    onExpandedChange = { expanded = !expanded },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    OutlinedTextField(
+                        value = deviceType,
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text("디바이스 타입") },
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+                        colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .menuAnchor()
+                    )
 
-                OutlinedTextField(
-                    value = devicePort,
-                    onValueChange = { devicePort = it },
-                    label = { Text("클라이언트 서버 포트") },
-                    modifier = Modifier.fillMaxWidth(),
-                    placeholder = { Text("예: 8081") }
-                )
+                    ExposedDropdownMenu(
+                        expanded = expanded,
+                        onDismissRequest = { expanded = false }
+                    ) {
+                        deviceTypes.forEach { type ->
+                            DropdownMenuItem(
+                                text = { Text(type) },
+                                onClick = {
+                                    deviceType = type
+                                    expanded = false
+                                }
+                            )
+                        }
+                    }
+                }
             }
         }
 
         Button(
             onClick = {
                 val serverPortInt = serverPort.toIntOrNull() ?: 8080
-                val devicePortInt = devicePort.toIntOrNull() ?: 8081
-                val finalDeviceIp = deviceIp.ifBlank {
-                    NetworkUtils().getHostExternalIpAddress()
-                }
-                onDeviceCheck(serverIp, serverPortInt, finalDeviceIp, devicePortInt)
+                onDeviceCheck(
+                    serverIp,
+                    serverPortInt,
+                    deviceType
+                )
             },
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(48.dp),
             enabled = serverIp.isNotBlank()
         ) {
-            Text("서버에 연결", fontSize = 18.sp)
+            Text("서버에 연결", fontSize = 16.sp)
         }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Text(
+            text = "서버 정보와 현재 디바이스 정보를 입력하여 동기화 네트워크에 참여하세요",
+            fontSize = 14.sp,
+            textAlign = TextAlign.Center,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
     }
 }
