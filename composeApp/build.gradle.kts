@@ -28,13 +28,17 @@ kotlin {
             dependsOn(commonMain.get())
         }
 
-        androidMain.dependencies {
-            implementation(compose.preview)
-            implementation(libs.androidx.activity.compose)
-            implementation(libs.ktor.client.okhttp)
+        androidMain {
+            dependsOn(commonMain.get())
+            dependencies {
+                implementation(compose.preview)
+                implementation(libs.androidx.activity.compose)
+                implementation(libs.ktor.client.okhttp)
+            }
         }
 
         named("mobileMain") {
+            dependsOn(androidMain.get())
             dependencies {
                 implementation(compose.preview)
                 implementation(libs.androidx.activity.compose)
@@ -43,6 +47,7 @@ kotlin {
         }
 
         named("wearMain") {
+            dependsOn(androidMain.get())
             dependencies {
                 implementation(compose.preview)
                 implementation(libs.androidx.activity.compose)
@@ -129,23 +134,18 @@ android {
         create("wear") {
             dimension = "device"
             applicationIdSuffix = ".wear"
-            // Wear-specific source sets
-            sourceSets {
-                getByName("main") {
-                    manifest.srcFile("src/wearMain/AndroidManifest.xml")
-                    res.srcDirs("src/wearMain/res")
-                }
-            }
         }
     }
 
     // Configure source sets for each flavor
-    applicationVariants.all {
-        val flavorName = productFlavors[0].name
-        kotlin.sourceSets {
-            getByName(name) {
-                kotlin.srcDir("src/${flavorName}Main/kotlin")
-            }
+    sourceSets {
+        getByName("mobile") {
+            manifest.srcFile("src/mobileMain/AndroidManifest.xml")
+            res.srcDirs("src/mobileMain/res")
+        }
+        getByName("wear") {
+            manifest.srcFile("src/wearMain/AndroidManifest.xml")
+            res.srcDirs("src/wearMain/res")
         }
     }
 }
