@@ -23,8 +23,10 @@ fun WearApp() {
 
         // WearOS back gesture handling
         BackHandler {
-            if (!viewModel.navigateBack()) {
-                // First screen - allow app exit
+            scope.launch {
+                if (!viewModel.navigateBack()) {
+                    // First screen - allow app exit
+                }
             }
         }
 

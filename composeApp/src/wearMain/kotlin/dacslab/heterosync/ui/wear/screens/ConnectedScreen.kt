@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.wear.compose.material.*
@@ -21,20 +22,52 @@ fun ConnectedScreen(
     val listState = rememberScalingLazyListState()
 
     ScalingLazyColumn(
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(top = 24.dp, start = 8.dp, end = 8.dp, bottom = 8.dp),
         state = listState,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         item {
-            Text(
-                text = "연결됨",
-                textAlign = TextAlign.Center,
-                style = MaterialTheme.typography.title1,
-                color = if (isWebSocketConnected)
-                    MaterialTheme.colors.primary
-                else
-                    MaterialTheme.colors.error
-            )
+            Card(
+                onClick = { },
+                backgroundPainter = CardDefaults.cardBackgroundPainter(
+                    startBackgroundColor = if (isWebSocketConnected) {
+                        Color(0xFF1B5E20) // 진한 초록색
+                    } else {
+                        Color(0xFFB71C1C) // 진한 빨간색
+                    },
+                    endBackgroundColor = if (isWebSocketConnected) {
+                        Color(0xFF2E7D32) // 초록색
+                    } else {
+                        Color(0xFFC62828) // 빨간색
+                    }
+                )
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(12.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Text(
+                        text = if (isWebSocketConnected) "✓ WebSocket 연결됨" else "⚠ 연결 중...",
+                        textAlign = TextAlign.Center,
+                        style = MaterialTheme.typography.body1,
+                        color = Color.White
+                    )
+
+                    if (webSocketDeviceId != null) {
+                        Text(
+                            text = "ID: ${webSocketDeviceId.take(15)}...",
+                            textAlign = TextAlign.Center,
+                            style = MaterialTheme.typography.caption2,
+                            color = Color.White.copy(alpha = 0.8f)
+                        )
+                    }
+                }
+            }
         }
 
         item {
@@ -66,24 +99,6 @@ fun ConnectedScreen(
                         style = MaterialTheme.typography.caption3
                     )
                 }
-            }
-        }
-
-        item {
-            Text(
-                text = if (isWebSocketConnected) "WebSocket 연결됨" else "연결 중...",
-                textAlign = TextAlign.Center,
-                style = MaterialTheme.typography.caption1
-            )
-        }
-
-        if (webSocketDeviceId != null) {
-            item {
-                Text(
-                    text = "ID: ${webSocketDeviceId.take(15)}...",
-                    textAlign = TextAlign.Center,
-                    style = MaterialTheme.typography.caption2
-                )
             }
         }
 

@@ -79,7 +79,7 @@ class AppViewModel {
     }
     
     // 뒤로가기 네비게이션 처리
-    fun navigateBack(): Boolean {
+    suspend fun navigateBack(): Boolean {
         return when (val currentState = _state.value) {
             is AppState.Loading -> {
                 // 로딩 중일 때는 DeviceInput으로 돌아감
@@ -88,6 +88,7 @@ class AppViewModel {
             }
             is AppState.Connected -> {
                 // 연결된 상태에서는 입력 화면으로
+                webSocketService.disconnect()
                 _state.value = AppState.DeviceInput
                 true
             }

@@ -20,39 +20,10 @@ kotlin {
     jvm()
     
     sourceSets {
-        val mobileMain by creating {
-            dependsOn(commonMain.get())
-        }
-
-        val wearMain by creating {
-            dependsOn(commonMain.get())
-        }
-
         androidMain {
-            dependsOn(commonMain.get())
             dependencies {
                 implementation(compose.preview)
                 implementation(libs.androidx.activity.compose)
-                implementation(libs.ktor.client.okhttp)
-            }
-        }
-
-        named("mobileMain") {
-            dependsOn(androidMain.get())
-            dependencies {
-                implementation(compose.preview)
-                implementation(libs.androidx.activity.compose)
-                implementation(libs.ktor.client.okhttp)
-            }
-        }
-
-        named("wearMain") {
-            dependsOn(androidMain.get())
-            dependencies {
-                implementation(compose.preview)
-                implementation(libs.androidx.activity.compose)
-                implementation(libs.androidx.wear.compose.material)
-                implementation(libs.androidx.wear.compose.foundation)
                 implementation(libs.ktor.client.okhttp)
             }
         }
@@ -142,16 +113,22 @@ android {
         getByName("mobile") {
             manifest.srcFile("src/mobileMain/AndroidManifest.xml")
             res.srcDirs("src/mobileMain/res")
+            java.srcDirs("src/mobileMain/kotlin")
         }
         getByName("wear") {
             manifest.srcFile("src/wearMain/AndroidManifest.xml")
             res.srcDirs("src/wearMain/res")
+            java.srcDirs("src/wearMain/kotlin")
         }
     }
 }
 
 dependencies {
     debugImplementation(compose.uiTooling)
+
+    // Wear OS specific dependencies
+    "wearImplementation"(libs.androidx.wear.compose.material)
+    "wearImplementation"(libs.androidx.wear.compose.foundation)
 }
 
 compose.desktop {
