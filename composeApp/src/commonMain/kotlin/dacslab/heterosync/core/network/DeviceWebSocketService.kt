@@ -18,7 +18,8 @@ class DeviceWebSocketService {
     private val client = HttpClient {
         install(WebSockets) {
             pingInterval = 20.seconds  // 20초마다 ping 전송
-            maxFrameSize = Long.MAX_VALUE
+            // maxFrameSize는 OkHttp 엔진(Wear OS)에서 지원하지 않으므로 제거
+            // 기본값(약 64KB)으로 충분함
         }
     }
 
