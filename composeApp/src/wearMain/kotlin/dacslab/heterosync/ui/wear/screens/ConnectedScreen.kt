@@ -8,6 +8,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.wear.compose.material.*
+import dacslab.heterosync.core.data.ConnectionHealth
 import dacslab.heterosync.core.data.DeviceInfo
 
 @Composable
@@ -17,6 +18,9 @@ fun ConnectedScreen(
     serverPort: Int,
     isWebSocketConnected: Boolean,
     webSocketDeviceId: String?,
+    connectionStatus: String = if (isWebSocketConnected) "연결됨" else "연결 중...",
+    connectionHealth: ConnectionHealth = ConnectionHealth.UNKNOWN,
+    lastError: String? = null,
     onDisconnect: () -> Unit
 ) {
     val listState = rememberScalingLazyListState()
@@ -32,15 +36,17 @@ fun ConnectedScreen(
             Card(
                 onClick = { },
                 backgroundPainter = CardDefaults.cardBackgroundPainter(
-                    startBackgroundColor = if (isWebSocketConnected) {
-                        Color(0xFF1B5E20) // 진한 초록색
-                    } else {
-                        Color(0xFFB71C1C) // 진한 빨간색
+                    startBackgroundColor = when (connectionHealth) {
+                        ConnectionHealth.HEALTHY -> Color(0xFF1B5E20) // 진한 초록색
+                        ConnectionHealth.UNHEALTHY -> Color(0xFFE65100) // 진한 주황색
+                        ConnectionHealth.DEAD -> Color(0xFFB71C1C) // 진한 빨간색
+                        ConnectionHealth.UNKNOWN -> Color(0xFF424242) // 회색
                     },
-                    endBackgroundColor = if (isWebSocketConnected) {
-                        Color(0xFF2E7D32) // 초록색
-                    } else {
-                        Color(0xFFC62828) // 빨간색
+                    endBackgroundColor = when (connectionHealth) {
+                        ConnectionHealth.HEALTHY -> Color(0xFF2E7D32) // 초록색
+                        ConnectionHealth.UNHEALTHY -> Color(0xFFF57C00) // 주황색
+                        ConnectionHealth.DEAD -> Color(0xFFC62828) // 빨간색
+                        ConnectionHealth.UNKNOWN -> Color(0xFF616161) // 밝은 회색
                     }
                 )
             ) {
@@ -52,7 +58,19 @@ fun ConnectedScreen(
                     verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
                     Text(
-                        text = if (isWebSocketConnected) "✓ WebSocket 연결됨" else "⚠ 연결 중...",
+                        text = when (connectionHealth) {
+                            ConnectionHealth.HEALTHY -> "🟢"
+                            ConnectionHealth.UNHEALTHY -> "🟡"
+                            ConnectionHealth.DEAD -> "🔴"
+                            ConnectionHealth.UNKNOWN -> "❓"
+                        },
+                        textAlign = TextAlign.Center,
+                        style = MaterialTheme.typography.display1,
+                        color = Color.White
+                    )
+
+                    Text(
+                        text = connectionStatus,
                         textAlign = TextAlign.Center,
                         style = MaterialTheme.typography.body1,
                         color = Color.White

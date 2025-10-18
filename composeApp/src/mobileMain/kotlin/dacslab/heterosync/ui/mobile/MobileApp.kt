@@ -23,8 +23,10 @@ fun MobileApp() {
 
         // Android back button handling
         BackHandler {
-            if (!viewModel.navigateBack()) {
-                // First screen - allow app exit (default behavior)
+            scope.launch {
+                if (!viewModel.navigateBack()) {
+                    // First screen - allow app exit (default behavior)
+                }
             }
         }
 
@@ -56,6 +58,9 @@ fun MobileApp() {
                         serverPort = currentState.serverPort,
                         isWebSocketConnected = currentState.isWebSocketConnected,
                         webSocketDeviceId = currentState.webSocketDeviceId,
+                        connectionStatus = currentState.connectionStatus,
+                        connectionHealth = currentState.connectionHealth,
+                        lastError = currentState.lastError,
                         onDisconnect = {
                             scope.launch {
                                 viewModel.disconnectWebSocket()

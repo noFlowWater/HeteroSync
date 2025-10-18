@@ -1,14 +1,19 @@
 package dacslab.heterosync.ui.common
 
+import dacslab.heterosync.core.data.ConnectionHealth
 import dacslab.heterosync.core.data.DeviceInfo
 import dacslab.heterosync.core.network.DeviceWebSocketService
 import dacslab.heterosync.core.utils.getDeviceUniqueId
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
 
 class AppViewModel {
     private val webSocketService = DeviceWebSocketService()
+    private val viewModelScope = CoroutineScope(Dispatchers.Main)
 
     private val _state = MutableStateFlow<AppState>(AppState.DeviceInput)
     val state: StateFlow<AppState> = _state.asStateFlow()
@@ -16,24 +21,65 @@ class AppViewModel {
     init {
         // WebSocket connection state callbacks
         webSocketService.onConnected = { deviceId, serverTime ->
-            updateWebSocketConnectedState(true, deviceId)
+            updateWebSocketConnectedState(true, deviceId, null)
         }
 
         webSocketService.onDisconnected = {
-            updateWebSocketConnectedState(false, null)
+            updateWebSocketConnectedState(false, null, null)
         }
 
         webSocketService.onError = { error ->
             println("WebSocket error: $error")
+            updateErrorMessage(error)
+        }
+
+        webSocketService.onReconnecting = { attempt ->
+            println("Reconnection attempt: $attempt")
+            updateWebSocketConnectedState(false, null, "재연결 중... ($attempt/5)")
+        }
+
+        webSocketService.onHealthChanged = { health ->
+            println("Connection health changed: $health")
+            updateConnectionHealth(health)
+        }
+
+        // Observe connection health flow
+        viewModelScope.launch {
+            webSocketService.connectionHealth.collect { health ->
+                updateConnectionHealth(health)
+            }
         }
     }
 
-    private fun updateWebSocketConnectedState(isConnected: Boolean, deviceId: String?) {
+    private fun updateWebSocketConnectedState(isConnected: Boolean, deviceId: String?, statusMessage: String?) {
         when (val currentState = _state.value) {
             is AppState.Connected -> {
                 _state.value = currentState.copy(
                     isWebSocketConnected = isConnected,
-                    webSocketDeviceId = deviceId
+                    webSocketDeviceId = deviceId,
+                    connectionStatus = statusMessage ?: if (isConnected) "연결됨" else "연결 끊김"
+                )
+            }
+            else -> {}
+        }
+    }
+
+    private fun updateErrorMessage(error: String) {
+        when (val currentState = _state.value) {
+            is AppState.Connected -> {
+                _state.value = currentState.copy(
+                    lastError = error
+                )
+            }
+            else -> {}
+        }
+    }
+
+    private fun updateConnectionHealth(health: ConnectionHealth) {
+        when (val currentState = _state.value) {
+            is AppState.Connected -> {
+                _state.value = currentState.copy(
+                    connectionHealth = health
                 )
             }
             else -> {}

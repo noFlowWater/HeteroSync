@@ -136,7 +136,7 @@ compose.desktop {
         mainClass = "dacslab.heterosync.core.MainKt"
 
         nativeDistributions {
-            targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Deb)
+            targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Deb, TargetFormat.Exe)
             packageName = "dacslab.heterosync.core"
             packageVersion = "1.0.0"
         }

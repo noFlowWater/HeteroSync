@@ -44,6 +44,9 @@ fun DesktopApp() {
                         serverPort = currentState.serverPort,
                         isWebSocketConnected = currentState.isWebSocketConnected,
                         webSocketDeviceId = currentState.webSocketDeviceId,
+                        connectionStatus = currentState.connectionStatus,
+                        connectionHealth = currentState.connectionHealth,
+                        lastError = currentState.lastError,
                         onDisconnect = {
                             scope.launch {
                                 viewModel.disconnectWebSocket()

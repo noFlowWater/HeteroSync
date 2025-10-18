@@ -8,6 +8,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import dacslab.heterosync.core.data.ConnectionHealth
 import dacslab.heterosync.core.data.DeviceInfo
 
 @Composable
@@ -17,6 +18,9 @@ fun ConnectedScreen(
     serverPort: Int,
     isWebSocketConnected: Boolean,
     webSocketDeviceId: String?,
+    connectionStatus: String = if (isWebSocketConnected) "연결됨" else "연결 중...",
+    connectionHealth: ConnectionHealth = ConnectionHealth.UNKNOWN,
+    lastError: String? = null,
     onDisconnect: () -> Unit
 ) {
     Column(
@@ -73,10 +77,12 @@ fun ConnectedScreen(
         Card(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 32.dp),
             colors = CardDefaults.cardColors(
-                containerColor = if (isWebSocketConnected)
-                    MaterialTheme.colorScheme.primaryContainer
-                else
-                    MaterialTheme.colorScheme.errorContainer
+                containerColor = when (connectionHealth) {
+                    ConnectionHealth.HEALTHY -> MaterialTheme.colorScheme.primaryContainer
+                    ConnectionHealth.UNHEALTHY -> MaterialTheme.colorScheme.tertiaryContainer
+                    ConnectionHealth.DEAD -> MaterialTheme.colorScheme.errorContainer
+                    ConnectionHealth.UNKNOWN -> MaterialTheme.colorScheme.surfaceVariant
+                }
             )
         ) {
             Column(
@@ -91,11 +97,30 @@ fun ConnectedScreen(
 
                 InfoRow(
                     "연결 상태",
-                    if (isWebSocketConnected) "연결됨" else "연결 중..."
+                    connectionStatus
+                )
+
+                InfoRow(
+                    "연결 건강도",
+                    when (connectionHealth) {
+                        ConnectionHealth.HEALTHY -> "🟢 정상"
+                        ConnectionHealth.UNHEALTHY -> "🟡 불안정"
+                        ConnectionHealth.DEAD -> "🔴 연결 끊김"
+                        ConnectionHealth.UNKNOWN -> "❓ 알 수 없음"
+                    }
                 )
 
                 if (webSocketDeviceId != null) {
                     InfoRow("WebSocket ID", webSocketDeviceId)
+                }
+
+                if (lastError != null) {
+                    Text(
+                        text = "⚠️ $lastError",
+                        fontSize = 14.sp,
+                        color = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.padding(top = 8.dp)
+                    )
                 }
             }
         }
