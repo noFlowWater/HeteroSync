@@ -4,10 +4,10 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.wear.compose.material.*
 import dacslab.heterosync.ui.common.AppState
-import dacslab.heterosync.ui.common.AppViewModel
 import dacslab.heterosync.ui.wear.screens.ConnectedScreen
 import dacslab.heterosync.ui.wear.screens.DeviceInputScreen
 import dacslab.heterosync.ui.wear.screens.ErrorScreen
@@ -17,16 +17,21 @@ import kotlinx.coroutines.launch
 @Composable
 fun WearApp() {
     MaterialTheme {
-        val viewModel = remember { AppViewModel() }
+        val context = LocalContext.current
+        val viewModel = remember { WearAppViewModel(context) }
         val state by viewModel.state.collectAsState()
-        val scope = rememberCoroutineScope()
+
+        // Cleanup on dispose
+        DisposableEffect(Unit) {
+            onDispose {
+                viewModel.cleanup()
+            }
+        }
 
         // WearOS back gesture handling
         BackHandler {
-            scope.launch {
-                if (!viewModel.navigateBack()) {
-                    // First screen - allow app exit
-                }
+            if (!viewModel.navigateBack()) {
+                // First screen - allow app exit
             }
         }
 
@@ -41,9 +46,7 @@ fun WearApp() {
                 is AppState.DeviceInput -> {
                     DeviceInputScreen(
                         onQuickConnect = { serverIp, serverPort, deviceType ->
-                            scope.launch {
-                                viewModel.connectToServer(serverIp, serverPort, deviceType)
-                            }
+                            viewModel.connectToServer(serverIp, serverPort, deviceType)
                         }
                     )
                 }
@@ -58,10 +61,8 @@ fun WearApp() {
                         connectionHealth = currentState.connectionHealth,
                         lastError = currentState.lastError,
                         onDisconnect = {
-                            scope.launch {
-                                viewModel.disconnectWebSocket()
-                                viewModel.resetToInput()
-                            }
+                            viewModel.disconnectWebSocket()
+                            viewModel.resetToInput()
                         }
                     )
                 }
