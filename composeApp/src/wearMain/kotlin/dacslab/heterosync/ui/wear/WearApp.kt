@@ -9,6 +9,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.wear.compose.material.*
 import dacslab.heterosync.ui.common.AppState
 import dacslab.heterosync.ui.wear.screens.ConnectedScreen
+import dacslab.heterosync.ui.wear.screens.DeviceIdSettingScreen
 import dacslab.heterosync.ui.wear.screens.DeviceInputScreen
 import dacslab.heterosync.ui.wear.screens.ErrorScreen
 import dacslab.heterosync.ui.wear.screens.LoadingScreen
@@ -20,6 +21,7 @@ fun WearApp() {
         val context = LocalContext.current
         val viewModel = remember { WearAppViewModel(context) }
         val state by viewModel.state.collectAsState()
+        val showDeviceIdSetting by viewModel.showDeviceIdSetting.collectAsState()
 
         // Cleanup on dispose
         DisposableEffect(Unit) {
@@ -30,7 +32,9 @@ fun WearApp() {
 
         // WearOS back gesture handling
         BackHandler {
-            if (!viewModel.navigateBack()) {
+            if (showDeviceIdSetting) {
+                viewModel.hideDeviceIdSetting()
+            } else if (!viewModel.navigateBack()) {
                 // First screen - allow app exit
             }
         }
@@ -39,38 +43,52 @@ fun WearApp() {
             timeText = { TimeText() },
             vignette = { Vignette(vignettePosition = VignettePosition.TopAndBottom) }
         ) {
-            when (val currentState = state) {
-                is AppState.Loading -> {
-                    LoadingScreen()
-                }
-                is AppState.DeviceInput -> {
-                    DeviceInputScreen(
-                        onQuickConnect = { serverIp, serverPort, deviceType ->
-                            viewModel.connectToServer(serverIp, serverPort, deviceType)
-                        }
-                    )
-                }
-                is AppState.Connected -> {
-                    ConnectedScreen(
-                        deviceInfo = currentState.deviceInfo,
-                        serverIp = currentState.serverIp,
-                        serverPort = currentState.serverPort,
-                        isWebSocketConnected = currentState.isWebSocketConnected,
-                        webSocketDeviceId = currentState.webSocketDeviceId,
-                        connectionStatus = currentState.connectionStatus,
-                        connectionHealth = currentState.connectionHealth,
-                        lastError = currentState.lastError,
-                        onDisconnect = {
-                            viewModel.disconnectWebSocket()
-                            viewModel.resetToInput()
-                        }
-                    )
-                }
-                is AppState.Error -> {
-                    ErrorScreen(
-                        message = currentState.message,
-                        onRetry = { viewModel.resetToInput() }
-                    )
+            if (showDeviceIdSetting) {
+                DeviceIdSettingScreen(
+                    currentDeviceId = viewModel.getSavedDeviceId(),
+                    onBack = { viewModel.hideDeviceIdSetting() },
+                    onDeviceIdSelected = { deviceId ->
+                        viewModel.saveDeviceId(deviceId)
+                    }
+                )
+            } else {
+                when (val currentState = state) {
+                    is AppState.Loading -> {
+                        LoadingScreen()
+                    }
+                    is AppState.DeviceInput -> {
+                        DeviceInputScreen(
+                            savedDeviceId = viewModel.getSavedDeviceId(),
+                            onQuickConnect = { serverIp, serverPort, deviceType ->
+                                viewModel.connectToServer(serverIp, serverPort, deviceType)
+                            },
+                            onDeviceIdSettingClick = {
+                                viewModel.showDeviceIdSetting()
+                            }
+                        )
+                    }
+                    is AppState.Connected -> {
+                        ConnectedScreen(
+                            deviceInfo = currentState.deviceInfo,
+                            serverIp = currentState.serverIp,
+                            serverPort = currentState.serverPort,
+                            isWebSocketConnected = currentState.isWebSocketConnected,
+                            webSocketDeviceId = currentState.webSocketDeviceId,
+                            connectionStatus = currentState.connectionStatus,
+                            connectionHealth = currentState.connectionHealth,
+                            lastError = currentState.lastError,
+                            onDisconnect = {
+                                viewModel.disconnectWebSocket()
+                                viewModel.resetToInput()
+                            }
+                        )
+                    }
+                    is AppState.Error -> {
+                        ErrorScreen(
+                            message = currentState.message,
+                            onRetry = { viewModel.resetToInput() }
+                        )
+                    }
                 }
             }
         }

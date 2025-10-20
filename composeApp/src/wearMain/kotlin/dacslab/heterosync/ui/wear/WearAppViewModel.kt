@@ -9,6 +9,7 @@ import android.os.IBinder
 import dacslab.heterosync.core.data.ConnectionHealth
 import dacslab.heterosync.core.data.DeviceInfo
 import dacslab.heterosync.core.service.WebSocketForegroundService
+import dacslab.heterosync.core.utils.DevicePreferences
 import dacslab.heterosync.core.utils.getDeviceUniqueId
 import dacslab.heterosync.ui.common.AppState
 import kotlinx.coroutines.CoroutineScope
@@ -20,9 +21,13 @@ import kotlinx.coroutines.launch
 
 class WearAppViewModel(private val context: Context) {
     private val viewModelScope = CoroutineScope(Dispatchers.Main)
+    private val devicePreferences = DevicePreferences(context)
 
     private val _state = MutableStateFlow<AppState>(AppState.DeviceInput)
     val state: StateFlow<AppState> = _state.asStateFlow()
+
+    private val _showDeviceIdSetting = MutableStateFlow(false)
+    val showDeviceIdSetting: StateFlow<Boolean> = _showDeviceIdSetting.asStateFlow()
 
     private var webSocketService: WebSocketForegroundService? = null
     private var isBound = false
@@ -110,6 +115,22 @@ class WearAppViewModel(private val context: Context) {
         }
     }
 
+    fun getSavedDeviceId(): String? {
+        return devicePreferences.getDeviceId()
+    }
+
+    fun saveDeviceId(deviceId: String) {
+        devicePreferences.saveDeviceId(deviceId)
+    }
+
+    fun showDeviceIdSetting() {
+        _showDeviceIdSetting.value = true
+    }
+
+    fun hideDeviceIdSetting() {
+        _showDeviceIdSetting.value = false
+    }
+
     fun connectToServer(
         serverIp: String,
         serverPort: Int,
@@ -117,8 +138,8 @@ class WearAppViewModel(private val context: Context) {
     ) {
         _state.value = AppState.Loading
 
-        // Get unique device ID
-        val deviceId = getDeviceUniqueId()
+        // Use saved device ID, or generate one
+        val deviceId = devicePreferences.getDeviceId() ?: getDeviceUniqueId()
 
         val tempDeviceInfo = DeviceInfo(
             deviceId = deviceId,

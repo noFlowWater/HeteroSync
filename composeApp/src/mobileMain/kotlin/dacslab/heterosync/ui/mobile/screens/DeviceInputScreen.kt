@@ -17,7 +17,7 @@ fun DeviceInputScreen(
 ) {
     // Server connection info
     var serverIp by remember { mutableStateOf("155.230.34.145") }
-    var serverPort by remember { mutableStateOf("8080") }
+    var serverPort by remember { mutableStateOf("8081") }
 
     // Device type dropdown
     var deviceType by remember { mutableStateOf("MOBILE") }
@@ -77,7 +77,7 @@ fun DeviceInputScreen(
                     onValueChange = { serverPort = it },
                     label = { Text("서버 포트") },
                     modifier = Modifier.fillMaxWidth(),
-                    placeholder = { Text("예: 8080") }
+                    placeholder = { Text("예: 8081") }
                 )
             }
         }
@@ -136,7 +136,7 @@ fun DeviceInputScreen(
 
         Button(
             onClick = {
-                val serverPortInt = serverPort.toIntOrNull() ?: 8080
+                val serverPortInt = serverPort.toIntOrNull() ?: 8081
                 onDeviceCheck(
                     serverIp,
                     serverPortInt,

@@ -17,7 +17,7 @@ fun DeviceInputScreen(
 ) {
     // 연결하고자 하는 서버의 BaseURL 정보를 위한 입력.
     var serverIp by remember { mutableStateOf("155.230.34.145") }
-    var serverPort by remember { mutableStateOf("8080") }
+    var serverPort by remember { mutableStateOf("8081") }
 
     // 디바이스 타입 드롭다운
     var deviceType by remember { mutableStateOf("PSG") }
@@ -108,7 +108,7 @@ fun DeviceInputScreen(
                         onValueChange = { serverPort = it },
                         label = { Text("서버 포트") },
                         modifier = Modifier.fillMaxWidth(),
-                        placeholder = { Text("예: 8080") }
+                        placeholder = { Text("예: 8081") }
                     )
                 }
             }
@@ -167,7 +167,7 @@ fun DeviceInputScreen(
             
             Button(
                 onClick = {
-                    val serverPortInt = serverPort.toIntOrNull() ?: 8080
+                    val serverPortInt = serverPort.toIntOrNull() ?: 8081
                     onDeviceCheck(
                         serverIp,
                         serverPortInt,
