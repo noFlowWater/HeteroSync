@@ -3,16 +3,12 @@ package dacslab.heterosync.core.service
 import android.app.*
 import android.content.Context
 import android.content.Intent
-import android.os.Binder
 import android.os.Build
 import android.os.IBinder
 import android.os.PowerManager
 import androidx.core.app.NotificationCompat
-import dacslab.heterosync.core.data.ConnectionHealth
 import dacslab.heterosync.core.network.DeviceWebSocketService
 import kotlinx.coroutines.*
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
 
 class WebSocketForegroundService : Service() {
 
@@ -29,28 +25,34 @@ class WebSocketForegroundService : Service() {
         const val EXTRA_DEVICE_ID = "EXTRA_DEVICE_ID"
     }
 
-    private val binder = LocalBinder()
-    private val serviceScope = CoroutineScope(Dispatchers.Default + SupervisorJob())
-
     private val webSocketService = DeviceWebSocketService()
-
-    private val _connectionState = MutableStateFlow<ConnectionState>(ConnectionState.Disconnected)
-    val connectionState: StateFlow<ConnectionState> = _connectionState
-
-    private val _connectionHealth = MutableStateFlow(ConnectionHealth.UNKNOWN)
-    val connectionHealth: StateFlow<ConnectionHealth> = _connectionHealth
-
     private var wakeLock: PowerManager.WakeLock? = null
-
-    inner class LocalBinder : Binder() {
-        fun getService(): WebSocketForegroundService = this@WebSocketForegroundService
-    }
 
     override fun onCreate() {
         super.onCreate()
         createNotificationChannel()
-        setupWebSocketCallbacks()
+        startForeground(NOTIFICATION_ID, createNotification("Starting..."))
+
+        // Acquire wake lock once when service is created
         acquireWakeLock()
+
+        // Simple callbacks - just update notification
+        webSocketService.onConnected = { deviceId, _ ->
+            updateNotification("Connected: $deviceId")
+        }
+
+        webSocketService.onDisconnected = {
+            updateNotification("Disconnected")
+            stopSelf()
+        }
+
+        webSocketService.onError = { error ->
+            updateNotification("Error")
+        }
+
+        webSocketService.onReconnecting = { attempt ->
+            updateNotification("Reconnecting ($attempt/5)")
+        }
     }
 
     private fun acquireWakeLock() {
@@ -60,8 +62,9 @@ class WebSocketForegroundService : Service() {
                 PowerManager.PARTIAL_WAKE_LOCK,
                 "HeteroSync::WebSocketWakeLock"
             ).apply {
-                acquire()
-                println("Wake Lock acquired - preventing system freeze")
+                setReferenceCounted(false)  // Prevent automatic release
+                acquire()  // Acquire indefinitely (will be released in onDestroy)
+                println("Wake Lock acquired (indefinite) - preventing system freeze")
             }
         } catch (e: Exception) {
             println("Failed to acquire Wake Lock: ${e.message}")
@@ -90,8 +93,11 @@ class WebSocketForegroundService : Service() {
                 val deviceType = intent.getStringExtra(EXTRA_DEVICE_TYPE) ?: return START_NOT_STICKY
                 val deviceId = intent.getStringExtra(EXTRA_DEVICE_ID) ?: return START_NOT_STICKY
 
-                startForeground(NOTIFICATION_ID, createNotification("Connecting..."))
-                connectToServer(serverIp, serverPort, deviceType, deviceId)
+                // Connect in background (wake lock already acquired in onCreate)
+                CoroutineScope(Dispatchers.IO).launch {
+                    updateNotification("Connecting...")
+                    webSocketService.connectToServer(serverIp, serverPort, deviceType, deviceId)
+                }
             }
             ACTION_STOP_SERVICE -> {
                 stopService()
@@ -101,100 +107,31 @@ class WebSocketForegroundService : Service() {
         return START_STICKY
     }
 
-    override fun onBind(intent: Intent?): IBinder {
-        return binder
-    }
-
-    private fun setupWebSocketCallbacks() {
-        webSocketService.onConnected = { deviceId, serverTime ->
-            _connectionState.value = ConnectionState.Connected(deviceId, serverTime)
-            updateNotification("Connected: $deviceId")
-        }
-
-        webSocketService.onDisconnected = {
-            _connectionState.value = ConnectionState.Disconnected
-            updateNotification("Disconnected")
-        }
-
-        webSocketService.onError = { error ->
-            _connectionState.value = ConnectionState.Error(error)
-            updateNotification("Error: $error")
-        }
-
-        webSocketService.onReconnecting = { attempt ->
-            _connectionState.value = ConnectionState.Reconnecting(attempt)
-            updateNotification("Reconnecting... ($attempt)")
-        }
-
-        webSocketService.onHealthChanged = { health ->
-            _connectionHealth.value = health
-        }
-
-        // Monitor connection health
-        serviceScope.launch {
-            webSocketService.connectionHealth.collect { health ->
-                _connectionHealth.value = health
-                val healthStatus = when (health) {
-                    ConnectionHealth.HEALTHY -> "✓"
-                    ConnectionHealth.UNHEALTHY -> "⚠"
-                    ConnectionHealth.DEAD -> "✗"
-                    ConnectionHealth.UNKNOWN -> "?"
-                }
-
-                when (val state = _connectionState.value) {
-                    is ConnectionState.Connected -> {
-                        updateNotification("Connected $healthStatus")
-                    }
-                    else -> {}
-                }
-            }
-        }
-    }
-
-    private fun connectToServer(serverIp: String, serverPort: Int, deviceType: String, deviceId: String) {
-        serviceScope.launch {
-            _connectionState.value = ConnectionState.Connecting
-            updateNotification("Connecting to $serverIp:$serverPort...")
-
-            val result = webSocketService.connectToServer(serverIp, serverPort, deviceType, deviceId)
-            result.onFailure { error ->
-                _connectionState.value = ConnectionState.Error(error.message ?: "Connection failed")
-                updateNotification("Connection failed")
-            }
-        }
-    }
-
-    fun disconnectFromServer() {
-        serviceScope.launch {
-            webSocketService.disconnect()
-            _connectionState.value = ConnectionState.Disconnected
-        }
+    override fun onBind(intent: Intent?): IBinder? {
+        return null
     }
 
     private fun stopService() {
-        serviceScope.launch {
+        CoroutineScope(Dispatchers.IO).launch {
             webSocketService.disconnect()
             releaseWakeLock()
-            serviceScope.cancel()
             stopForeground(STOP_FOREGROUND_REMOVE)
             stopSelf()
         }
     }
 
     private fun createNotificationChannel() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(
-                CHANNEL_ID,
-                "WebSocket Connection",
-                NotificationManager.IMPORTANCE_LOW
-            ).apply {
-                description = "Maintains WebSocket connection in background"
-                setShowBadge(false)
-            }
-
-            val notificationManager = getSystemService(NotificationManager::class.java)
-            notificationManager.createNotificationChannel(channel)
+        val channel = NotificationChannel(
+            CHANNEL_ID,
+            "WebSocket Connection",
+            NotificationManager.IMPORTANCE_LOW
+        ).apply {
+            description = "Maintains WebSocket connection in background"
+            setShowBadge(false)
         }
+
+        val notificationManager = getSystemService(NotificationManager::class.java)
+        notificationManager.createNotificationChannel(channel)
     }
 
     private fun createNotification(contentText: String): Notification {
@@ -229,15 +166,6 @@ class WebSocketForegroundService : Service() {
 
     override fun onDestroy() {
         releaseWakeLock()
-        serviceScope.cancel()
         super.onDestroy()
-    }
-
-    sealed class ConnectionState {
-        object Disconnected : ConnectionState()
-        object Connecting : ConnectionState()
-        data class Connected(val deviceId: String, val serverTime: Long) : ConnectionState()
-        data class Reconnecting(val attempt: Int) : ConnectionState()
-        data class Error(val message: String) : ConnectionState()
     }
 }

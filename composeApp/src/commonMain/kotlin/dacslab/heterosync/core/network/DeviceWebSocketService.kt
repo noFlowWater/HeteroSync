@@ -18,7 +18,7 @@ class DeviceWebSocketService {
     private val json = Json { ignoreUnknownKeys = true }
     private val client = HttpClient {
         install(WebSockets) {
-            pingInterval = 1.minutes  // 20초마다 ping 전송
+            pingInterval = 1.minutes  // 1분마다 ping 전송
         }
     }
 
@@ -184,7 +184,7 @@ class DeviceWebSocketService {
         stopPingJob()
         pingJob = CoroutineScope(Dispatchers.Default).launch {
             while (isActive && isConnected) {
-                delay(15_000)  // 15초마다 ping 전송
+                delay(59_000)  // 59초마다 ping 전송
                 try {
                     val pingMessage = PingMessage(
                         type = "PING",
