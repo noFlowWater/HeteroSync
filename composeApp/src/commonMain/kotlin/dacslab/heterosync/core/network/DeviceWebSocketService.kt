@@ -13,7 +13,9 @@ import kotlinx.serialization.decodeFromString
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
 
-class DeviceWebSocketService {
+class DeviceWebSocketService(
+    private val scope: CoroutineScope
+) {
 
     private val json = Json { ignoreUnknownKeys = true }
     private val client = HttpClient {
@@ -32,7 +34,6 @@ class DeviceWebSocketService {
     // 재연결 설정
     private var shouldReconnect = false
     private var reconnectAttempts = 0
-    private val maxReconnectAttempts = 5
     private val reconnectDelay = 3_000L  // 3초
 
     // 연결 파라미터 저장 (재연결용)
@@ -88,7 +89,7 @@ class DeviceWebSocketService {
         val deviceId = lastDeviceId ?: return
 
         connectionJob?.cancel()
-        connectionJob = CoroutineScope(Dispatchers.Default).launch {
+        connectionJob = scope.launch {
             try {
                 client.webSocket(
                     host = serverIp,
@@ -143,16 +144,12 @@ class DeviceWebSocketService {
                 stopPingJob()
                 stopHealthCheckJob()
 
-                // 재연결 시도
-                if (shouldReconnect && reconnectAttempts < maxReconnectAttempts) {
+                // 재연결 시도 - 프로세스가 살아있는 한 계속 시도
+                if (shouldReconnect) {
                     scheduleReconnect()
                 } else {
                     onDisconnected?.invoke()
-                    if (reconnectAttempts >= maxReconnectAttempts) {
-                        onError?.invoke("Connection lost after $maxReconnectAttempts attempts")
-                    } else {
-                        onError?.invoke("Connection error: ${e.message}")
-                    }
+                    onError?.invoke("Connection error: ${e.message}")
                 }
             } finally {
                 isConnected = false
@@ -167,9 +164,9 @@ class DeviceWebSocketService {
 
     private fun scheduleReconnect() {
         reconnectJob?.cancel()
-        reconnectJob = CoroutineScope(Dispatchers.Default).launch {
+        reconnectJob = scope.launch {
             reconnectAttempts++
-            println("Reconnecting... Attempt $reconnectAttempts/$maxReconnectAttempts")
+            println("Reconnecting... Attempt #$reconnectAttempts")
             onReconnecting?.invoke(reconnectAttempts)
             
             delay(reconnectDelay)
@@ -182,7 +179,7 @@ class DeviceWebSocketService {
 
     private fun startPingJob() {
         stopPingJob()
-        pingJob = CoroutineScope(Dispatchers.Default).launch {
+        pingJob = scope.launch {
             while (isActive && isConnected) {
                 delay(59_000)  // 59초마다 ping 전송
                 try {
@@ -208,7 +205,7 @@ class DeviceWebSocketService {
 
     private fun startHealthCheckJob() {
         stopHealthCheckJob()
-        healthCheckJob = CoroutineScope(Dispatchers.Default).launch {
+        healthCheckJob = scope.launch {
             while (isActive && isConnected) {
                 delay(30_000)  // 30초마다 건강도 체크
                 checkConnectionHealth()
@@ -244,7 +241,7 @@ class DeviceWebSocketService {
                 ConnectionHealth.DEAD -> {
                     println("🔴 Connection dead (Last PING: ${timeSinceLastPing}ms ago)")
                     // 연결이 죽었으면 재연결 시도
-                    CoroutineScope(Dispatchers.Default).launch {
+                    scope.launch {
                         disconnect()
                         if (shouldReconnect) {
                             scheduleReconnect()
@@ -260,12 +257,28 @@ class DeviceWebSocketService {
     suspend fun disconnect(): Result<String> {
         return try {
             shouldReconnect = false  // 재연결 중지
+
+            // 모든 Job 취소하고 완료 대기
             reconnectJob?.cancel()
-            stopPingJob()
-            stopHealthCheckJob()
+            reconnectJob?.join()
+
+            pingJob?.cancel()
+            pingJob?.join()
+            pingJob = null
+
+            healthCheckJob?.cancel()
+            healthCheckJob?.join()
+            healthCheckJob = null
+
             connectionJob?.cancel()
+            connectionJob?.join()
+
             webSocketSession?.close()
             webSocketSession = null
+
+            // HttpClient 리소스 정리
+            client.close()
+
             isConnected = false
             reconnectAttempts = 0
             _connectionHealth.value = ConnectionHealth.UNKNOWN

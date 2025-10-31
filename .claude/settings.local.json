@@ -1,7 +1,11 @@
 {
   "permissions": {
     "allow": [
-      "Bash(mkdir:*)"
+      "Bash(mkdir:*)",
+      "Bash(adb shell cat:*)",
+      "Bash(adb pull:*)",
+      "Bash(adb logcat:*)",
+      "Bash(adb shell dumpsys:*)"
     ],
     "deny": [],
     "ask": []

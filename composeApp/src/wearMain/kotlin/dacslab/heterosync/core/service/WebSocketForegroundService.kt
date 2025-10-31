@@ -9,6 +9,7 @@ import android.os.PowerManager
 import androidx.core.app.NotificationCompat
 import dacslab.heterosync.core.network.DeviceWebSocketService
 import kotlinx.coroutines.*
+import kotlin.coroutines.CoroutineContext
 
 class WebSocketForegroundService : Service() {
 
@@ -25,11 +26,17 @@ class WebSocketForegroundService : Service() {
         const val EXTRA_DEVICE_ID = "EXTRA_DEVICE_ID"
     }
 
-    private val webSocketService = DeviceWebSocketService()
+    // 서비스 생명주기와 연결된 CoroutineScope
+    private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    private lateinit var webSocketService: DeviceWebSocketService
     private var wakeLock: PowerManager.WakeLock? = null
 
     override fun onCreate() {
         super.onCreate()
+
+        // DeviceWebSocketService 초기화 (serviceScope 전달)
+        webSocketService = DeviceWebSocketService(serviceScope)
+
         createNotificationChannel()
         startForeground(NOTIFICATION_ID, createNotification("Starting..."))
 
@@ -43,7 +50,7 @@ class WebSocketForegroundService : Service() {
 
         webSocketService.onDisconnected = {
             updateNotification("Disconnected")
-            stopSelf()
+            // stopSelf() 제거 - 명시적 종료만 stopService()를 통해 처리
         }
 
         webSocketService.onError = { error ->
@@ -51,7 +58,7 @@ class WebSocketForegroundService : Service() {
         }
 
         webSocketService.onReconnecting = { attempt ->
-            updateNotification("Reconnecting ($attempt/5)")
+            updateNotification("Reconnecting (#$attempt)")
         }
     }
 
@@ -112,12 +119,9 @@ class WebSocketForegroundService : Service() {
     }
 
     private fun stopService() {
-        CoroutineScope(Dispatchers.IO).launch {
-            webSocketService.disconnect()
-            releaseWakeLock()
-            stopForeground(STOP_FOREGROUND_REMOVE)
-            stopSelf()
-        }
+        // 실제 정리 작업은 onDestroy()에서 동기적으로 처리됨
+        stopForeground(STOP_FOREGROUND_REMOVE)
+        stopSelf()
     }
 
     private fun createNotificationChannel() {
@@ -165,7 +169,19 @@ class WebSocketForegroundService : Service() {
     }
 
     override fun onDestroy() {
+        // 동기적으로 서비스 종료 처리 (ANR 방지를 위해 타임아웃 설정)
+        runBlocking {
+            try {
+                withTimeout(5000L) {  // 최대 5초 대기
+                    webSocketService.disconnect()
+                }
+            } catch (e: Exception) {
+                println("Service cleanup error: ${e.message}")
+            }
+        }
+
         releaseWakeLock()
+        serviceScope.cancel()
         super.onDestroy()
     }
 }

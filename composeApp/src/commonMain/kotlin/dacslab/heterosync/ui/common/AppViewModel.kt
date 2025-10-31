@@ -12,8 +12,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
 class AppViewModel {
-    private val webSocketService = DeviceWebSocketService()
     private val viewModelScope = CoroutineScope(Dispatchers.Main)
+    private val webSocketService = DeviceWebSocketService(viewModelScope)
 
     private val _state = MutableStateFlow<AppState>(AppState.DeviceInput)
     val state: StateFlow<AppState> = _state.asStateFlow()
@@ -35,7 +35,7 @@ class AppViewModel {
 
         webSocketService.onReconnecting = { attempt ->
             println("Reconnection attempt: $attempt")
-            updateWebSocketConnectedState(false, null, "재연결 중... ($attempt/5)")
+            updateWebSocketConnectedState(false, null, "재연결 중... (#$attempt)")
         }
 
         webSocketService.onHealthChanged = { health ->
