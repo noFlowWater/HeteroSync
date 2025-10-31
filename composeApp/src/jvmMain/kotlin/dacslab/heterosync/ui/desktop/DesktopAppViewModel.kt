@@ -8,6 +8,7 @@ import dacslab.heterosync.core.utils.getDeviceUniqueId
 import dacslab.heterosync.ui.common.AppState
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -18,7 +19,8 @@ import kotlinx.coroutines.launch
  * PreferencesManager를 통해 디바이스 ID를 저장하고 로드합니다.
  */
 class DesktopAppViewModel {
-    private val viewModelScope = CoroutineScope(Dispatchers.Main)
+    // Wear와 동일한 패턴: Default dispatcher 사용 (네트워크 작업에 적합)
+    private val viewModelScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private val webSocketService = DeviceWebSocketService(viewModelScope)
 
     private val _state = MutableStateFlow<AppState>(AppState.DeviceInput)

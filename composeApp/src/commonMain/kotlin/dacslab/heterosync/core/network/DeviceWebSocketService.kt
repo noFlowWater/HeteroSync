@@ -14,8 +14,11 @@ import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
 
 class DeviceWebSocketService(
-    private val scope: CoroutineScope
+    parentScope: CoroutineScope
 ) {
+    // 독립적인 SupervisorJob - parent Job과 연결하지 않아 재연결 시 안정성 보장
+    // Wear와 동일한 패턴 사용
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
     private val json = Json { ignoreUnknownKeys = true }
     private val client = HttpClient {
@@ -276,8 +279,8 @@ class DeviceWebSocketService(
             webSocketSession?.close()
             webSocketSession = null
 
-            // HttpClient 리소스 정리
-            client.close()
+            // HttpClient는 재사용되어야 하므로 close하지 않음
+            // (한 번 close하면 재연결 시 사용 불가)
 
             isConnected = false
             reconnectAttempts = 0
