@@ -147,12 +147,18 @@ class DeviceWebSocketService(
                 stopPingJob()
                 stopHealthCheckJob()
 
+                // CancellationException은 정상적인 종료이므로 에러가 아님
+                val isCancellation = e is kotlinx.coroutines.CancellationException
+
                 // 재연결 시도 - 프로세스가 살아있는 한 계속 시도
-                if (shouldReconnect) {
+                if (shouldReconnect && !isCancellation) {
                     scheduleReconnect()
                 } else {
                     onDisconnected?.invoke()
-                    onError?.invoke("Connection error: ${e.message}")
+                    // 정상적인 취소가 아닌 경우만 에러로 처리
+                    if (!isCancellation) {
+                        onError?.invoke("Connection error: ${e.message}")
+                    }
                 }
             } finally {
                 isConnected = false
@@ -225,6 +231,8 @@ class DeviceWebSocketService(
         val currentTime = System.currentTimeMillis()
         val timeSinceLastPing = currentTime - lastPingReceived
 
+        println("🔍 Health check: isConnected=$isConnected, timeSinceLastPing=${timeSinceLastPing}ms")
+
         val newHealth = when {
             !isConnected -> ConnectionHealth.UNKNOWN
             timeSinceLastPing > 120_000 -> ConnectionHealth.DEAD  // 120초 초과
@@ -232,8 +240,11 @@ class DeviceWebSocketService(
             else -> ConnectionHealth.HEALTHY
         }
 
+        println("🔍 Current health: ${_connectionHealth.value}, New health: $newHealth, Changed: ${_connectionHealth.value != newHealth}")
+
         if (_connectionHealth.value != newHealth) {
             _connectionHealth.value = newHealth
+            println("🔔 Invoking onHealthChanged callback with $newHealth")
             onHealthChanged?.invoke(newHealth)
 
             when (newHealth) {

@@ -75,11 +75,10 @@ fun WearApp() {
                             isWebSocketConnected = true,  // Service is running
                             webSocketDeviceId = currentState.deviceInfo.deviceId,
                             connectionStatus = "연결됨",
-                            connectionHealth = dacslab.heterosync.core.data.ConnectionHealth.HEALTHY,  // Assume healthy when connected
+                            connectionHealth = currentState.connectionHealth,
                             lastError = currentState.lastError,
                             onDisconnect = {
                                 viewModel.disconnectWebSocket()
-                                viewModel.resetToInput()
                             }
                         )
                     }
