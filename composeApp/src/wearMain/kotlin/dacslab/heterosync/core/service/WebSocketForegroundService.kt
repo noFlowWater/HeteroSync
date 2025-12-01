@@ -55,8 +55,8 @@ class WebSocketForegroundService : Service() {
     override fun onCreate() {
         super.onCreate()
 
-        // DeviceWebSocketService 초기화 (serviceScope 전달)
-        webSocketService = DeviceWebSocketService(serviceScope)
+        // DeviceWebSocketService 초기화
+        webSocketService = DeviceWebSocketService()
 
         createNotificationChannel()
         startForeground(NOTIFICATION_ID, createNotification("Starting..."))
@@ -240,7 +240,7 @@ class WebSocketForegroundService : Service() {
 
         try {
             // 1. DeviceWebSocketService 새 인스턴스 생성
-            webSocketService = DeviceWebSocketService(serviceScope)
+            webSocketService = DeviceWebSocketService()
             println("  ✓ New DeviceWebSocketService instance created")
 
             // 2. 콜백 재설정

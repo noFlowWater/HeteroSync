@@ -11,11 +11,8 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.decodeFromString
 import kotlin.time.Duration.Companion.minutes
-import kotlin.time.Duration.Companion.seconds
 
-class DeviceWebSocketService(
-    parentScope: CoroutineScope
-) {
+class DeviceWebSocketService {
     // 독립적인 SupervisorJob - parent Job과 연결하지 않아 재연결 시 안정성 보장
     // Wear와 동일한 패턴 사용
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
@@ -149,7 +146,7 @@ class DeviceWebSocketService(
                 stopHealthCheckJob()
 
                 // CancellationException은 정상적인 종료이므로 에러가 아님
-                val isCancellation = e is kotlinx.coroutines.CancellationException
+                val isCancellation = e is CancellationException
 
                 // 재연결 시도 - 프로세스가 살아있는 한 계속 시도
                 if (shouldReconnect && !isCancellation) {

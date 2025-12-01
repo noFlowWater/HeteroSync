@@ -21,7 +21,7 @@ import kotlinx.coroutines.launch
 class DesktopAppViewModel {
     // Wear와 동일한 패턴: Default dispatcher 사용 (네트워크 작업에 적합)
     private val viewModelScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
-    private val webSocketService = DeviceWebSocketService(viewModelScope)
+    private val webSocketService = DeviceWebSocketService()
 
     private val _state = MutableStateFlow<AppState>(AppState.DeviceInput)
     val state: StateFlow<AppState> = _state.asStateFlow()

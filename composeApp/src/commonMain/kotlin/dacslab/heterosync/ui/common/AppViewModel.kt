@@ -13,7 +13,7 @@ import kotlinx.coroutines.launch
 
 class AppViewModel {
     private val viewModelScope = CoroutineScope(Dispatchers.Main)
-    private val webSocketService = DeviceWebSocketService(viewModelScope)
+    private val webSocketService = DeviceWebSocketService()
 
     private val _state = MutableStateFlow<AppState>(AppState.DeviceInput)
     val state: StateFlow<AppState> = _state.asStateFlow()
