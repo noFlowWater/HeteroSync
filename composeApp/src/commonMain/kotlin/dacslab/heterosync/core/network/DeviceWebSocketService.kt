@@ -117,8 +117,9 @@ class DeviceWebSocketService(
                         for (frame in incoming) {
                             when (frame) {
                                 is Frame.Text -> {
+                                    val receiveTime = System.currentTimeMillis()  // 프레임 수신 직후 타임스탬프 캡처
                                     val messageText = frame.readText()
-                                    handleIncomingMessage(messageText)
+                                    handleIncomingMessage(messageText, receiveTime)
                                 }
                                 is Frame.Ping -> {
                                     println("Received Ping from server")
@@ -308,7 +309,7 @@ class DeviceWebSocketService(
         return isConnected
     }
 
-    private suspend fun handleIncomingMessage(messageText: String) {
+    private suspend fun handleIncomingMessage(messageText: String, receiveTime: Long) {
         try {
             println("Received message: $messageText")
 
@@ -324,7 +325,7 @@ class DeviceWebSocketService(
             if (messageText.contains("\"type\":\"TIME_REQUEST\"")) {
                 val message = json.decodeFromString<TimeRequestMessage>(messageText)
                 println("Time request received: requestId=${message.requestId}")
-                handleTimeRequest(message.requestId)
+                handleTimeRequest(message.requestId, receiveTime)
                 return
             }
 
@@ -368,18 +369,21 @@ class DeviceWebSocketService(
         }
     }
 
-    private suspend fun handleTimeRequest(requestId: String) {
+    private suspend fun handleTimeRequest(requestId: String, receiveTime: Long) {
         try {
-            val currentTime = System.currentTimeMillis()
+            // T3: TIME_RESPONSE를 보내기 직전 시간 기록
+            val sendTime = System.currentTimeMillis()
+
             val response = TimeResponseMessage(
                 type = "TIME_RESPONSE",
                 requestId = requestId,
-                timestamp = currentTime
+                receiveTime = receiveTime,
+                sendTime = sendTime
             )
 
             val responseJson = json.encodeToString(response)
             webSocketSession?.send(Frame.Text(responseJson))
-            println("Time response sent: requestId=$requestId, timestamp=$currentTime")
+            println("Time response sent: requestId=$requestId, receiveTime=$receiveTime, sendTime=$sendTime")
         } catch (e: Exception) {
             println("Time response send failed: ${e.message}")
             onError?.invoke("Time response send failed: ${e.message}")

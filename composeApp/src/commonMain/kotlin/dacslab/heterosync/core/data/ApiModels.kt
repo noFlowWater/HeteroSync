@@ -21,7 +21,8 @@ data class TimeRequestMessage(
 data class TimeResponseMessage(
     val type: String,
     val requestId: String,
-    val timestamp: Long
+    val receiveTime: Long,  // T2: 클라이언트가 TIME_REQUEST를 받은 시간
+    val sendTime: Long      // T3: 클라이언트가 TIME_RESPONSE를 보내는 시간
 )
 
 @Serializable
