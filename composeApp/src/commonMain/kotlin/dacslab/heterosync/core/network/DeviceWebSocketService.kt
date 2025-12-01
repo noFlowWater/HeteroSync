@@ -55,7 +55,7 @@ class DeviceWebSocketService {
     var onReconnecting: ((Int) -> Unit)? = null  // 재연결 시도 횟수 전달
     var onHealthChanged: ((ConnectionHealth) -> Unit)? = null
 
-    suspend fun connectToServer(
+    fun connectToServer(
         serverIp: String,
         serverPort: Int,
         deviceType: String,
